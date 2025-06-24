@@ -31,51 +31,22 @@ from utils import compute_norm_accuracy
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 FP_CHECKPOINT_PATH = "checkpoints/fp_cnn.th"
-HWA_CHECKPOINT_PATH = "checkpoints/fine.th"
+HWA_CHECKPOINT_PATH = "checkpoints/hwa_model_final.th"
 
-def gen_rpu_config():
-    rpu_config = InferenceRPUConfig()
-    rpu_config.modifier.std_dev = 0.06
-    rpu_config.modifier.type = WeightModifierType.ADD_NORMAL
 
-    rpu_config.mapping.digital_bias = True
-    rpu_config.mapping.weight_scaling_omega = 1.0
-    rpu_config.mapping.weight_scaling_columnwise = False
-    rpu_config.mapping.out_scaling_columnwise = False
-    rpu_config.remap.type = WeightRemapType.LAYERWISE_SYMMETRIC
-
-    rpu_config.clip.type = WeightClipType.LAYER_GAUSSIAN
-    rpu_config.clip.sigma = 2.0
-
-    rpu_config.forward = IOParameters()
-    rpu_config.forward.is_perfect = False
-    rpu_config.forward.out_noise = 0.04
-    rpu_config.forward.inp_bound = 1.0
-    rpu_config.forward.inp_res = 1 / (2**8 - 2)
-    rpu_config.forward.out_bound = 10
-    rpu_config.forward.out_res = 1 / (2**8 - 2)
-    rpu_config.forward.bound_management = BoundManagementType.NONE
-    rpu_config.forward.noise_management = NoiseManagementType.NONE
-
-    rpu_config.pre_post.input_range.enable = True
-    rpu_config.pre_post.input_range.decay = 0.01
-    rpu_config.pre_post.input_range.init_from_data = 50
-    rpu_config.pre_post.input_range.init_std_alpha = 3.0
-    rpu_config.pre_post.input_range.input_min_percentage = 0.995
-    rpu_config.pre_post.input_range.manage_output_clipping = False
-
-    rpu_config.noise_model = PCMLikeNoiseModel(g_max=25.0)
-    rpu_config.drift_compensation = GlobalDriftCompensation()
-    return rpu_config
 
 
 def main():
     _, test_data = load_cifar10_data(batch_size=50, num_workers=2, use_augmentation=True)
+    rpu_config = hwa_rpu_config(
+        hwa_noise_scale=3,
+        noise_scale=1,
+        drift_scale=1,
+        g_min=0,
+        g_max=25.0
+    )
 
-    model = resnet32().to(DEVICE)
-    rpu_config = gen_rpu_config()
-    hwa_model = convert_to_analog(model, rpu_config).to(DEVICE)
-    hwa_model.load_state_dict(torch.load(HWA_CHECKPOINT_PATH, map_location=DEVICE, weights_only=False))
+    hwa_model = load_hwa_model(HWA_CHECKPOINT_PATH, rpu_config, DEVICE, True)
     t_inference = 365 * 24 * 60 * 60
     test_loss, test_accuracy, test_error_rate = inference_hwa(
         hwa_model, test_data, t_inference, 3, DEVICE)
