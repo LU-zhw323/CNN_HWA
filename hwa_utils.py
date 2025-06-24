@@ -23,14 +23,18 @@ from torch.serialization import add_safe_globals
 from aihwkit.optim import AnalogSGD
 
 
-def train_step_hwa(model, train_data, optimizer, device)->float:
+def train_step_hwa(model, rpu_config, train_data, optimizer, device)->float:
     """
     Train the model on the data loader for hwa training
     Args:
         model: the model to train
+        rpu_config: the rpu config to use
         train_data: the data loader to train on
         device: the device to train on
         optimizer: the optimizer to use
+    Returns:
+        avg_train_loss: the average loss
+        avg_train_accuracy: the average accuracy
     """
     model.train()
     train_loss = 0.0
@@ -39,6 +43,10 @@ def train_step_hwa(model, train_data, optimizer, device)->float:
     num_batches = len(train_data)
     
     for i, (images, labels) in enumerate(train_data, 0):
+        # remap weights per 500 batches
+        if (i + 1) % 500 == 0:
+            model.remap_analog_weights()
+
         images = images.to(device)
         labels = labels.to(device)
         optimizer.zero_grad()
@@ -207,10 +215,10 @@ def load_hwa_model(analog_model_path, rpu_config, device, load_rpu=False)->nn.Mo
     return analog_model
 
 
-def ramp_up_noise(epoch, rpu_config, max_epochs=600, initial_noise=1e-3, max_noise=3.0, ramp_up_ratio=0.1):
+def ramp_up_noise(batch_count, rpu_config, max_batches=20000, initial_noise=0.0, max_noise=3.0):
 
     # ramp up noise in the first 100 epochs
-    noise_ramp_ratio = min(epoch / (max_epochs * ramp_up_ratio), 1.0)
+    noise_ramp_ratio = min(batch_count / max_batches, 1.0)
     current_noise = initial_noise + (max_noise - initial_noise) * noise_ramp_ratio
 
     # update rpu config

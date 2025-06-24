@@ -51,23 +51,31 @@ def main():
 
     # optimizer
     optimizer = AnalogSGD(hwa_model.parameters(), lr=cnn_config.lr, momentum=cnn_config.momentum, weight_decay=cnn_config.weight_decay)
-    scheduler = create_two_step_lr_schedule(optimizer, start_lr=cnn_config.lr, milestones=cnn_config.lr_milestones, lr_decay_factor=cnn_config.lr_decay_factor)
+    scheduler = create_two_step_lr_schedule(
+        optimizer, start_lr=cnn_config.lr, 
+        milestones=cnn_config.lr_milestones, 
+        lr_decay_factor=cnn_config.lr_decay_factor,
+        warmup_epochs=100,
+    )
     
     # train hwa model
     best_test_error_rate = float('inf')
+
+    # count batches
+    batch_count = 0
+
+
     for epoch in tqdm(range(cnn_config.epochs), desc="Training"):
         current_lr = optimizer.param_groups[0]['lr']
 
         # ramp up noise
-        ramp_up_noise(epoch, rpu_config, max_epochs=cnn_config.epochs, initial_noise=cnn_config.initial_hwa_noise_scale, max_noise=cnn_config.hwa_noise_scale, ramp_up_ratio=cnn_config.ramp_up_ratio)
+        ramp_up_noise(batch_count, rpu_config)
         hwa_model.replace_rpu_config(rpu_config)
-
-        # rmap weights
-        hwa_model.remap_analog_weights()
 
         # train hwa model
         train_loss, train_accuracy = train_step_hwa(
-            hwa_model, train_data, optimizer, DEVICE)
+            hwa_model, rpu_config, train_data, optimizer, DEVICE)
+        batch_count += num_train_batches
         print("-" * 80)
         print(f"Epoch {epoch+1:2d} | Lr: {current_lr:.3f} | Noise: {rpu_config.modifier.std_dev:.3f} | Train Loss: {train_loss:.3f} | Train Accuracy: {train_accuracy:.3f}")
         # evaluate hwa model
@@ -76,7 +84,6 @@ def main():
         
         print(f"Epoch {epoch+1:2d} | Lr: {current_lr:.3f} | Noise: {rpu_config.modifier.std_dev:.3f} | Test Loss: {test_loss:.3f} | Test Accuracy: {test_accuracy:.3f} | Test Error Rate: {test_error_rate:.3f}")
         print("-" * 80)
-        #scheduler.step()
         if test_error_rate < best_test_error_rate:
             best_test_error_rate = test_error_rate
             save_hwa_model(hwa_model, HWA_CHECKPOINT_PATH)

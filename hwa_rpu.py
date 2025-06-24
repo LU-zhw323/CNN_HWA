@@ -61,6 +61,9 @@ def hwa_rpu_config(
     rpu_config.mapping.digital_bias = True
     rpu_config.mapping.out_scaling_columnwise = True
     rpu_config.mapping.learn_out_scaling = True
+    rpu_config.mapping.weight_scaling_omega = 1.0     # 权重重映射的omega参数
+    rpu_config.mapping.weight_scaling_columnwise = True  # column-wise权重scaling
+    rpu_config.mapping.weight_scaling_lr_compensation = True  # LR补偿
 
     # learn input range
     rpu_config.pre_post.input_range.enable = True
