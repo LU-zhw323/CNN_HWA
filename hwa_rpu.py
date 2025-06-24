@@ -38,9 +38,9 @@ def hwa_rpu_config(
     rpu_config.modifier.std_dev = hwa_noise_scale
     rpu_config.modifier.pcm_t0 = 20.0
 
-    '''# weight clipping
+    # weight clipping
     rpu_config.clip.type = WeightClipType.LAYER_GAUSSIAN
-    rpu_config.clip.sigma = 2.5'''
+    rpu_config.clip.sigma = 2.5
 
     # forward
     rpu_config.forward.out_res = 1.0 / (2**8 - 2)
@@ -61,9 +61,10 @@ def hwa_rpu_config(
     rpu_config.mapping.digital_bias = True
     rpu_config.mapping.out_scaling_columnwise = True
     rpu_config.mapping.learn_out_scaling = True
-    rpu_config.mapping.weight_scaling_omega = 1.0     # 权重重映射的omega参数
-    rpu_config.mapping.weight_scaling_columnwise = True  # column-wise权重scaling
-    rpu_config.mapping.weight_scaling_lr_compensation = True  # LR补偿
+    rpu_config.mapping.weight_scaling_omega = 1.0
+    rpu_config.mapping.weight_scaling_columnwise = True
+    #rpu_config.mapping.weight_scaling_lr_compensation = True
+    
 
     # learn input range
     rpu_config.pre_post.input_range.enable = True

@@ -18,7 +18,7 @@ import torch.nn.functional as F
 from aihwkit.nn.conversion import convert_to_analog
 import torch.nn as nn
 
-from resnet import ResNet
+from resnet import resnet32
 from torch.serialization import add_safe_globals
 from aihwkit.optim import AnalogSGD
 
@@ -202,17 +202,11 @@ def load_hwa_model(analog_model_path, rpu_config, device, load_rpu=False)->nn.Mo
     Returns:
         hwa_model: loaded analog model
     """
-    # First, create the original FP model structure
-    model = ResNet().to(device)
-    
-    
-    # convert fp model to hwa model
-    analog_model = convert_to_analog(model, rpu_config).to(device)
-    
-    # Load the saved state dictionaries
-    analog_model.load_state_dict(torch.load(analog_model_path, map_location=device, weights_only=False), load_rpu_config=load_rpu)
-    
-    return analog_model
+    model = resnet32().to(device)
+
+    hwa_model = convert_to_analog(model, rpu_config).to(device)
+    hwa_model.load_state_dict(torch.load(analog_model_path, map_location=device, weights_only=False), load_rpu_config=load_rpu)
+    return hwa_model
 
 
 def ramp_up_noise(batch_count, rpu_config, max_batches=20000, initial_noise=0.0, max_noise=3.0):

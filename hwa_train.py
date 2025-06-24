@@ -6,16 +6,15 @@ import torchvision
 import numpy as np
 from tqdm import tqdm
 from hwa_utils import covert_fp_to_hwa, evaluate_hwa, inference_hwa, load_hwa_model, ramp_up_noise, save_hwa_model, train_step_hwa, load_hwa_model
-from resnet import ResNet
+from resnet import resnet32
 from hwa_rpu import hwa_rpu_config
 from config import CNN_HWA_Config
 from aihwkit.nn.conversion import convert_to_analog
 from aihwkit.optim import AnalogSGD
 from utils import evaluate_fp, set_seed, create_two_step_lr_schedule
 from data import load_cifar10_data
-DATA_PATH = "data/ptb"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-FP_CHECKPOINT_PATH = "checkpoints/fp_cnn.pt"
+FP_CHECKPOINT_PATH = "checkpoints/fp_cnn.th"
 HWA_CHECKPOINT_PATH = "checkpoints/hwa_model.th"
 HWA_FINAL_CHECKPOINT_PATH = "checkpoints/hwa_model_final.th"
 
@@ -42,7 +41,7 @@ def main():
     num_test_batches = len(test_data)
 
     # load model
-    model = ResNet().to(DEVICE)
+    model = resnet32().to(DEVICE)
     model.load_state_dict(torch.load(FP_CHECKPOINT_PATH))
 
 
@@ -55,7 +54,7 @@ def main():
         optimizer, start_lr=cnn_config.lr, 
         milestones=cnn_config.lr_milestones, 
         lr_decay_factor=cnn_config.lr_decay_factor,
-        warmup_epochs=100,
+        warmup_epochs=2
     )
     
     # train hwa model
@@ -97,10 +96,8 @@ def main():
     print(f"FINAL | Test Loss: {test_loss:.3f} | Test Accuracy: {test_accuracy:.3f} | Test Error Rate: {test_error_rate:.3f}")
     print("-" * 80)
 
-    
     # load best hwa model
     hwa_model = load_hwa_model(HWA_CHECKPOINT_PATH, rpu_config, DEVICE, True)
-    #hwa_model.load_state_dict(torch.load(HWA_CHECKPOINT_PATH, map_location=DEVICE, weights_only=False))
     # evaluate hwa model
     test_loss, test_accuracy, test_error_rate = inference_hwa(
         hwa_model, test_data, cnn_config.t_inference, cnn_config.num_evals, DEVICE)

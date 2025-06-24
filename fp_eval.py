@@ -8,14 +8,14 @@ from utils import evaluate_fp
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "checkpoints/fp_cnn.pt"
+CHECKPOINT_PATH = "checkpoints/fp_cnn.th"
 
 
 def main():
 
     _, testloader = data.load_cifar10_data(batch_size=50, num_workers=2)
 
-    model = resnet.ResNet().to(DEVICE)
+    model = resnet.resnet32().to(DEVICE)
     model.load_state_dict(torch.load(CHECKPOINT_PATH))
    
 

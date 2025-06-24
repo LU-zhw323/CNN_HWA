@@ -5,37 +5,20 @@ import torchvision.transforms as transforms
 
 
 class Cutout:
-    def __init__(self, n_holes=1, length=16):
-        self.n_holes = n_holes
+    def __init__(self, length, fill=(0.0, 0.0, 0.0)):
         self.length = length
+        self.fill = torch.tensor(fill).reshape(shape=(3, 1, 1))
 
     def __call__(self, img):
-        """
-        Args:
-            img (Tensor): Tensor image of size (C, H, W).
-        Returns:
-            Tensor: Image with n_holes cut out of it.
-        """
         h = img.size(1)
         w = img.size(2)
-
-        mask = np.ones((h, w), np.float32)
-
-        for n in range(self.n_holes):
-            y = np.random.randint(h)
-            x = np.random.randint(w)
-
-            y1 = np.clip(y - self.length // 2, 0, h)
-            y2 = np.clip(y + self.length // 2, 0, h)
-            x1 = np.clip(x - self.length // 2, 0, w)
-            x2 = np.clip(x + self.length // 2, 0, w)
-
-            mask[y1: y2, x1: x2] = 0.
-
-        mask = torch.from_numpy(mask)
-        mask = mask.expand_as(img)
-        img = img * mask
-
+        y = np.random.randint(h)
+        x = np.random.randint(w)
+        y1 = np.clip(y - self.length // 2, 0, h)
+        y2 = np.clip(y + self.length // 2, 0, h)
+        x1 = np.clip(x - self.length // 2, 0, w)
+        x2 = np.clip(x + self.length // 2, 0, w)
+        img[:, y1:y2, x1:x2] = self.fill
         return img
 
 
@@ -47,10 +30,10 @@ def load_cifar10_data(batch_size=50, num_workers=2, use_augmentation=True):
     if use_augmentation:
         train_transform = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(cifar10_mean, cifar10_std),
-            Cutout(n_holes=1, length=16)
+            Cutout(length=8)
         ])
     else:
         train_transform = transforms.Compose([
