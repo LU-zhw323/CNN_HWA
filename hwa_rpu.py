@@ -13,7 +13,7 @@ from aihwkit.inference.converter.conductance import SinglePairConductanceConvert
 from aihwkit.simulator.presets.utils import IOParameters
 
 def hwa_rpu_config(
-        hwa_noise_scale: float=5.0,
+        hwa_noise_scale: float=3.0,
         noise_scale: float=1.0, 
         drift_scale: float=1.0, 
         g_min: float=0.0, 
