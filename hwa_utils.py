@@ -206,3 +206,14 @@ def load_hwa_model(analog_model_path, rpu_config, device, load_rpu=False)->nn.Mo
     
     return analog_model
 
+
+def ramp_up_noise(epoch, rpu_config, max_epochs=600, initial_noise=1e-3, max_noise=3.0, ramp_up_ratio=0.1):
+
+    # ramp up noise in the first 100 epochs
+    noise_ramp_ratio = min(epoch / (max_epochs * ramp_up_ratio), 1.0)
+    current_noise = initial_noise + (max_noise - initial_noise) * noise_ramp_ratio
+
+    # update rpu config
+    rpu_config.modifier.std_dev = current_noise
+
+

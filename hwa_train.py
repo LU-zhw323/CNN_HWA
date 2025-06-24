@@ -5,7 +5,7 @@ import torch.nn.init as init
 import torchvision
 import numpy as np
 from tqdm import tqdm
-from hwa_utils import covert_fp_to_hwa, evaluate_hwa, inference_hwa, load_hwa_model, save_hwa_model, train_step_hwa, load_hwa_model
+from hwa_utils import covert_fp_to_hwa, evaluate_hwa, inference_hwa, load_hwa_model, ramp_up_noise, save_hwa_model, train_step_hwa, load_hwa_model
 from resnet import ResNet
 from hwa_rpu import hwa_rpu_config
 from config import CNN_HWA_Config
@@ -35,7 +35,7 @@ def main():
         g_max=cnn_config.g_max
     )
 
-    train_data, test_data = load_cifar10_data(batch_size=50, num_workers=2)
+    train_data, test_data = load_cifar10_data(batch_size=50, num_workers=2, use_augmentation=True)
 
     # get number of batches
     num_train_batches = len(train_data)
@@ -44,8 +44,6 @@ def main():
     # load model
     model = ResNet().to(DEVICE)
     model.load_state_dict(torch.load(FP_CHECKPOINT_PATH))
-    avg_loss, accuracy, error_rate = evaluate_fp(model, train_data, DEVICE)
-    print(f"Average loss: {avg_loss}, Accuracy: {accuracy}, Error rate: {error_rate}")
 
 
     # convert fp model to hwa model
@@ -59,16 +57,24 @@ def main():
     best_test_error_rate = float('inf')
     for epoch in tqdm(range(cnn_config.epochs), desc="Training"):
         current_lr = optimizer.param_groups[0]['lr']
+
+        # ramp up noise
+        ramp_up_noise(epoch, rpu_config, max_epochs=cnn_config.epochs, initial_noise=cnn_config.initial_hwa_noise_scale, max_noise=cnn_config.hwa_noise_scale, ramp_up_ratio=cnn_config.ramp_up_ratio)
+        hwa_model.replace_rpu_config(rpu_config)
+
+        # rmap weights
+        hwa_model.remap_analog_weights()
+
         # train hwa model
         train_loss, train_accuracy = train_step_hwa(
             hwa_model, train_data, optimizer, DEVICE)
         print("-" * 80)
-        print(f"Epoch {epoch+1:2d} | Lr: {current_lr:.3f} | Train Loss: {train_loss:.3f} | Train Accuracy: {train_accuracy:.3f}")
+        print(f"Epoch {epoch+1:2d} | Lr: {current_lr:.3f} | Noise: {rpu_config.modifier.std_dev:.3f} | Train Loss: {train_loss:.3f} | Train Accuracy: {train_accuracy:.3f}")
         # evaluate hwa model
         test_loss, test_accuracy, test_error_rate = evaluate_hwa(
             hwa_model, test_data, cnn_config.num_evals, DEVICE)
         
-        print(f"Epoch {epoch+1:2d} | Lr: {current_lr:.3f} | Test Loss: {test_loss:.3f} | Test Accuracy: {test_accuracy:.3f} | Test Error Rate: {test_error_rate:.3f}")
+        print(f"Epoch {epoch+1:2d} | Lr: {current_lr:.3f} | Noise: {rpu_config.modifier.std_dev:.3f} | Test Loss: {test_loss:.3f} | Test Accuracy: {test_accuracy:.3f} | Test Error Rate: {test_error_rate:.3f}")
         print("-" * 80)
         #scheduler.step()
         if test_error_rate < best_test_error_rate:

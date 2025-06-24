@@ -10,7 +10,9 @@ class CNN_HWA_Config:
     epochs: int = 600
 
     # hwa training parameters
+    initial_hwa_noise_scale: float = 1e-3
     hwa_noise_scale: float = 3.0
+    ramp_up_ratio: float = 0.1 # ramp up noise in the first 60 epochs
     pdrop: float = 0.00
     lr: float = 7.5e-3
     lr_decay_factor: float = 0.1 # applied after each epoch if valid loss not improved

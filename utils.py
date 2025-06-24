@@ -85,10 +85,7 @@ def create_two_step_lr_schedule(optimizer, start_lr=7.5e-3, warmup_epochs=2, mil
     
     def lr_lambda(epoch):
         if epoch < warmup_epochs:
-            # warmup
-            progress = epoch / warmup_epochs
-            current_lr = warmup_lr + (start_lr - warmup_lr) * progress
-            return current_lr / start_lr
+            return 1.0 / warmup_reduction
         elif epoch < milestones[0]:
             # first stage: keep start_lr
             return 1.0
@@ -97,7 +94,7 @@ def create_two_step_lr_schedule(optimizer, start_lr=7.5e-3, warmup_epochs=2, mil
             return lr_decay_factor
         else:
             # second stage: drop to final_lr and keep
-            return final_lr / start_lr
+            return final_lr_ratio
     
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
     return scheduler
