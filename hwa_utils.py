@@ -19,7 +19,6 @@ from aihwkit.nn.conversion import convert_to_analog
 import torch.nn as nn
 
 from resnet import resnet32
-from torch.serialization import add_safe_globals
 from aihwkit.optim import AnalogSGD
 
 
