@@ -47,13 +47,23 @@ def main():
     )
 
     hwa_model = load_hwa_model(HWA_CHECKPOINT_PATH, rpu_config, DEVICE, True)
-    t_inference = 365 * 24 * 60 * 60
-    test_loss, test_accuracy, test_error_rate = inference_hwa(
-        hwa_model, test_data, t_inference, 3, DEVICE)
-    print(f"Test Loss: {test_loss:.3f}, Test Accuracy: {test_accuracy:.3f}, Test Error Rate: {test_error_rate:.3f}")
+    t_map = {
+        'year': 365 * 24 * 60 * 60,
+        'week': 7 * 24 * 60 * 60,
+        'day': 24 * 60 * 60,
+        'hour': 60 * 60,
+        'second': 1
+    }
+    for key, value in t_map.items():
+        t_inference = value
+        print(f"Evaluating {key}...")
+        test_loss, test_accuracy, test_error_rate = inference_hwa(
+            hwa_model, test_data, t_inference, 25, DEVICE)
+        print(f"Test Loss: {test_loss:.3f}, Test Accuracy: {test_accuracy:.3f}, Test Error Rate: {test_error_rate:.3f}")
 
-    norm_acc = compute_norm_accuracy(0.05879999999999996, test_error_rate, 10)
-    print(f"Normal Accuracy: {norm_acc:.3f}")
+        norm_acc = compute_norm_accuracy(0.05879999999999996, test_error_rate, 10)
+        print(f"Normal Accuracy: {norm_acc:.3f}")
+        print("-"*100)
 
 if __name__ == "__main__":
     main()
