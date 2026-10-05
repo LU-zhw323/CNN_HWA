@@ -1,17 +1,12 @@
-import math
+import argparse
 import torch
-import torch.nn.functional as F
-import torch.nn.init as init
-import torchvision
-import numpy as np
 from tqdm import tqdm
-from hwa_utils import covert_fp_to_hwa, evaluate_hwa, inference_hwa, load_hwa_model, ramp_up_noise, save_hwa_model, train_step_hwa, load_hwa_model
+from hwa_utils import covert_fp_to_hwa, evaluate_hwa, inference_hwa, load_hwa_model, ramp_up_noise, save_hwa_model, train_step_hwa
 from resnet import resnet32
 from hwa_rpu import hwa_rpu_config
 from config import CNN_HWA_Config
-from aihwkit.nn.conversion import convert_to_analog
 from aihwkit.optim import AnalogSGD
-from utils import evaluate_fp, set_seed, create_two_step_lr_schedule
+from utils import set_seed, create_two_step_lr_schedule
 from data import load_cifar10_data
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 FP_CHECKPOINT_PATH = "checkpoints/fp_cnn.th"
@@ -19,11 +14,32 @@ HWA_CHECKPOINT_PATH = "checkpoints/hwa_model.th"
 HWA_FINAL_CHECKPOINT_PATH = "checkpoints/hwa_model_final.th"
 
 
+def parse_args():
+    """Command-line options of one HWA training run."""
+    parser = argparse.ArgumentParser(description="HWA training of the FP ResNet-32 on CIFAR-10.")
+    parser.add_argument("--seed", type=int, default=42, help="Seed for Python, NumPy and PyTorch.")
+    parser.add_argument("--run_id", type=int, default=None,
+                        help="Save to checkpoints/hwa_model_<run_id>.th and hwa_model_final_<run_id>.th "
+                             "instead of hwa_model.th and hwa_model_final.th.")
+    return parser.parse_args()
 
 
 def main():
+    """Trains the analog ResNet-32 converted from `FP_CHECKPOINT_PATH` with ramped-up PCM weight noise.
+
+    Saves the last-epoch model to the final checkpoint path; the inference results use this one. Also saves
+    the epoch with the lowest test error to the other path. Overwrites existing checkpoints at these paths.
+    Prints test metrics of both models at `CNN_HWA_Config.t_inference`.
+    """
+    args = parse_args()
+    if args.run_id is None:
+        best_checkpoint_path, final_checkpoint_path = HWA_CHECKPOINT_PATH, HWA_FINAL_CHECKPOINT_PATH
+    else:
+        best_checkpoint_path = f"checkpoints/hwa_model_{args.run_id}.th"
+        final_checkpoint_path = f"checkpoints/hwa_model_final_{args.run_id}.th"
+
     # set seed
-    set_seed(42)
+    set_seed(args.seed)
     # setup rpu config
     cnn_config = CNN_HWA_Config()
     rpu_config = hwa_rpu_config(
@@ -85,11 +101,11 @@ def main():
         print("-" * 80)
         if test_error_rate < best_test_error_rate:
             best_test_error_rate = test_error_rate
-            save_hwa_model(hwa_model, HWA_CHECKPOINT_PATH)
+            save_hwa_model(hwa_model, best_checkpoint_path)
         scheduler.step()
 
     # save final hwa model
-    save_hwa_model(hwa_model, HWA_FINAL_CHECKPOINT_PATH)
+    save_hwa_model(hwa_model, final_checkpoint_path)
     test_loss, test_accuracy, test_error_rate = inference_hwa(
         hwa_model, test_data, cnn_config.t_inference, cnn_config.num_evals, DEVICE)
     print("-" * 80)
@@ -97,7 +113,7 @@ def main():
     print("-" * 80)
 
     # load best hwa model
-    hwa_model = load_hwa_model(HWA_CHECKPOINT_PATH, rpu_config, DEVICE, True)
+    hwa_model = load_hwa_model(best_checkpoint_path, rpu_config, DEVICE, True)
     # evaluate hwa model
     test_loss, test_accuracy, test_error_rate = inference_hwa(
         hwa_model, test_data, cnn_config.t_inference, cnn_config.num_evals, DEVICE)
