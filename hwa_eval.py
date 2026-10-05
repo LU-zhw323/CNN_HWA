@@ -1,42 +1,21 @@
-import math
 import torch
-import torch.nn.functional as F
-import torch.nn.init as init
-import torchvision
-import numpy as np
-from tqdm import tqdm
-from hwa_utils import covert_fp_to_hwa, evaluate_hwa, inference_hwa, load_hwa_model, ramp_up_noise, save_hwa_model, train_step_hwa, load_hwa_model
-from resnet import resnet32
+from hwa_utils import inference_hwa, load_hwa_model
 from hwa_rpu import hwa_rpu_config
-from config import CNN_HWA_Config
-from aihwkit.nn.conversion import convert_to_analog
-from aihwkit.optim import AnalogSGD
-from utils import evaluate_fp, set_seed, create_two_step_lr_schedule
 from data import load_cifar10_data
-
-from aihwkit.inference.noise.pcm import PCMLikeNoiseModel
-from aihwkit.inference.compensation.drift import GlobalDriftCompensation
-from aihwkit.simulator.configs import InferenceRPUConfig
-from aihwkit.simulator.configs.utils import (
-    WeightModifierType,
-    BoundManagementType,
-    WeightClipType,
-    NoiseManagementType,
-    WeightRemapType,
-    WeightNoiseType,
-)
-from aihwkit.inference.converter.conductance import SinglePairConductanceConverter
-from aihwkit.simulator.presets.utils import IOParameters
 from utils import compute_norm_accuracy
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-FP_CHECKPOINT_PATH = "checkpoints/fp_cnn.th"
 HWA_CHECKPOINT_PATH = "checkpoints/hwa_model_final.th"
 
 
 
 
 def main():
+    """Prints test metrics of `HWA_CHECKPOINT_PATH` at 1 year, 1 week, 1 day, 1 hour and 1 s after programming.
+
+    Uses the RPU config stored in the checkpoint. Programs the weights once, at the first time point,
+    and averages 25 evaluations per time.
+    """
     _, test_data = load_cifar10_data(batch_size=50, num_workers=2, use_augmentation=True)
     rpu_config = hwa_rpu_config(
         hwa_noise_scale=3,

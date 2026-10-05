@@ -6,11 +6,9 @@ from aihwkit.simulator.configs.utils import (
     BoundManagementType,
     WeightClipType,
     NoiseManagementType,
-    WeightRemapType,
     WeightNoiseType,
 )
 from aihwkit.inference.converter.conductance import SinglePairConductanceConverter
-from aihwkit.simulator.presets.utils import IOParameters
 
 def hwa_rpu_config(
         hwa_noise_scale: float=3.0,
@@ -23,7 +21,6 @@ def hwa_rpu_config(
     Generate a rpu config for HWA training
     Args:
         hwa_noise_scale: noise scale for hwa training
-        hwa_pdrop: dropout rate for hwa training
         noise_scale: noise scale for noise model
         drift_scale: drift scale for noise model
         g_min: minimum conductance for noise model
@@ -85,46 +82,4 @@ def hwa_rpu_config(
     )
     rpu_config.drift_compensation = GlobalDriftCompensation()
 
-    return rpu_config
-
-
-
-
-
-def pretain_rpu_config():
-    """
-    Generate a rpu config for the aihwkit pretained model
-    """
-    rpu_config = InferenceRPUConfig()
-    rpu_config.modifier.std_dev = 0.06
-    rpu_config.modifier.type = WeightModifierType.ADD_NORMAL
-
-    rpu_config.mapping.digital_bias = True
-    rpu_config.mapping.weight_scaling_omega = 1.0
-    rpu_config.mapping.weight_scaling_columnwise = False
-    rpu_config.mapping.out_scaling_columnwise = False
-    rpu_config.remap.type = WeightRemapType.LAYERWISE_SYMMETRIC
-
-    rpu_config.clip.type = WeightClipType.LAYER_GAUSSIAN
-    rpu_config.clip.sigma = 2.0
-
-    rpu_config.forward = IOParameters()
-    rpu_config.forward.is_perfect = False
-    rpu_config.forward.out_noise = 0.04
-    rpu_config.forward.inp_bound = 1.0
-    rpu_config.forward.inp_res = 1 / (2**8 - 2)
-    rpu_config.forward.out_bound = 10
-    rpu_config.forward.out_res = 1 / (2**8 - 2)
-    rpu_config.forward.bound_management = BoundManagementType.NONE
-    rpu_config.forward.noise_management = NoiseManagementType.NONE
-
-    rpu_config.pre_post.input_range.enable = True
-    rpu_config.pre_post.input_range.decay = 0.01
-    rpu_config.pre_post.input_range.init_from_data = 50
-    rpu_config.pre_post.input_range.init_std_alpha = 3.0
-    rpu_config.pre_post.input_range.input_min_percentage = 0.995
-    rpu_config.pre_post.input_range.manage_output_clipping = False
-
-    rpu_config.noise_model = PCMLikeNoiseModel(g_max=25.0)
-    rpu_config.drift_compensation = GlobalDriftCompensation()
     return rpu_config
